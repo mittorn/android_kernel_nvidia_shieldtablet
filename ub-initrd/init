@@ -1,0 +1,99 @@
+#!/sbin/busybox sh
+PATH=/bin:/sbin:/usr/bin:/usr/sbin
+BB=/sbin/busybox
+
+# For debugging
+#set -x
+
+$BB mkdir -p /etc
+
+$BB mkdir -p /proc
+$BB mount -t proc proc /proc
+$BB mkdir -p /sys
+$BB mount -t sysfs sysfs /sys
+$BB mkdir -p /dev
+$BB mount -t devtmpfs devtmpfs /dev
+
+# Disable kernel messages
+echo 0 > /proc/sys/kernel/printk
+
+PARTOFF=0
+if [ -e /dev/mmcblk0p25 ]; then # LTE version
+    PARTOFF=1
+fi
+DATAPART=/dev/mmcblk0p$((PARTOFF + 23))
+SYSPART=/dev/mmcblk0p$((PARTOFF + 13))
+FACTORYPART=/dev/mmcblk0p$((PARTOFF + 18))
+CALIBPART=/dev/mmcblk0p$((PARTOFF + 8))
+CACHEPART=/dev/mmcblk0p$((PARTOFF + 14))
+
+ROOT=
+ROOTFLAGS=
+ROOTFSTYPE=ext4
+ROOTSUBDIR=/
+LOOP=
+LOOPFLAGS=
+LOOPFSTYPE=ext4
+for x in $(cat /proc/cmdline); do
+    case $x in
+    root=*)
+        ROOT=$(findfs ${x#root=})
+        ;;
+    rootflags=*)
+        ROOTFLAGS="-o ${x#rootflags=}"
+        ;;
+    rootfstype=*)
+        ROOTFSTYPE="${x#rootfstype=}"
+        ;;
+    rootsubdir=*)
+        ROOTSUBDIR="${x#rootsubdir=}"
+        ;;
+    loop=*)
+        LOOP="${x#loop=}"
+        ;;
+    loopflags=*)
+        LOOPFLAGS="-o ${x#loopflags=}"
+        ;;
+    loopfstype=*)
+        LOOPFSTYPE="${x#loopfstype=}"
+        ;;
+    esac
+done
+
+$BB mkdir -p /data
+$BB mount -t $ROOTFSTYPE $ROOTFLAGS $ROOT /data
+$BB mkdir -p /root
+if [ -n "$LOOP" ]; then
+    mount $LOOPFLAGS -o loop -t $LOOPFSTYPE "/data/$LOOP" /root
+else
+    mount -o bind "/data/$ROOTSUBDIR" /root
+fi
+if [ "$ROOT" != "$DATAPART" ]; then
+    umount /data
+    mount -t ext4 -o noatime,nodiratime,errors=panic $DATAPART /data
+fi
+
+$BB mkdir -p /root/data
+$BB mkdir -p /root/android/cache
+$BB mkdir -p /root/android/system
+$BB mkdir -p /root/mnt/factory
+$BB mkdir -p /root/mnt/usercalib
+
+$BB mount -o move /data /root/data
+$BB mount -t ext4 -o noatime,nodiratime,errors=panic $CACHEPART /root/android/cache
+$BB mount -t ext4 -o noatime,nodiratime,errors=panic,ro $SYSPART /root/android/system
+$BB mount -t ext4 -o ro $FACTORYPART /root/mnt/factory
+$BB mount -t ext4 -o ro $CALIBPART /root/mnt/usercalib
+
+$BB mkdir -p /root/dev
+$BB mkdir -p /root/sys
+$BB mkdir -p /root/proc
+
+$BB mount -o move /dev /root/dev
+$BB mount -o move /sys /root/sys
+$BB mount -o move /proc /root/proc
+
+exec $BB switch_root /root /sbin/init
+
+echo "Something bad happened... Good luck!"
+$BB sh
