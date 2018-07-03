@@ -1837,7 +1837,7 @@ static void __init tegra_reserve_ramoops_memory(unsigned long reserve_size)
 	ramoops_data.pmsg_size = PMSG_MEM_SIZE;
 #endif
 	ramoops_data.dump_oops = 1;
-	if (memblock_remove(ramoops_data.mem_address, ramoops_data.mem_size))
+	if (memblock_remove(ramoops_data.mem_address - SZ_1M, ramoops_data.mem_size + SZ_1M))
 		pr_err("Failed to remove carveout %08lx@%08llx from memory map\n",
 			reserve_size, (u64)ramoops_data.mem_address);
 }
