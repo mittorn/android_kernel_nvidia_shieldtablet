@@ -3405,6 +3405,9 @@ static void rm_tch_set_input_resolution(unsigned int x, unsigned int y)
 {
 	input_set_abs_params(g_input_dev, ABS_MT_POSITION_X, 0, x - 1, 0, 0);
 	input_set_abs_params(g_input_dev, ABS_MT_POSITION_Y, 0, y - 1, 0, 0);
+	input_set_abs_params(g_input_dev, ABS_X, 0, x - 1, 0, 0);
+	input_set_abs_params(g_input_dev, ABS_Y, 0, y - 1, 0, 0);
+
 }
 
 static struct rm_spi_ts_platform_data *rm_ts_parse_dt(struct device *dev,
@@ -3551,6 +3554,10 @@ struct rm_tch_ts *rm_tch_input_init(struct device *dev, unsigned int irq,
 
 	input_set_drvdata(input_dev, ts);
 	input_set_capability(input_dev, EV_MSC, MSC_ACTIVITY);
+	input_set_capability(input_dev, EV_ABS, ABS_X);
+	input_set_capability(input_dev, EV_ABS, ABS_Y);
+	input_set_capability(input_dev, EV_ABS, ABS_PRESSURE);
+	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
 
 #if (INPUT_PROTOCOL_CURRENT_SUPPORT == INPUT_PROTOCOL_TYPE_A)
 	__set_bit(EV_ABS, input_dev->evbit);
